@@ -8,7 +8,7 @@
 #include <NTPClient.h>
 
 WiFiUDP u;
-NTPClient n(u, "1.asia.pool.ntp.org", 7*3600);
+NTPClient n(u, "pool.ntp.org",7*3600);
 WebSocketsClient webSocket;
 
 const String ip_host = "ahkiot.herokuapp.com";
@@ -18,7 +18,12 @@ int temp = 0;
 int tempErr = 0;
 String resServer = "";
 int t = 11*3600 + 47*60;
-int a, b;
+String DateLine, TimeClose, TimeOpen;
+//int a = n.getHours();
+//int b = n.getMinutes();
+//String h = String(a);
+//String m = String(b);
+//String myString = String(h+":"+m);
 
 void configModeCallback (WiFiManager *myWiFiManager)
 {
@@ -48,25 +53,22 @@ void webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
     webSocket.sendTXT("NodeMCU ESP8266 connected!");
 
     Serial.println((char *)payload);
-    std::string str(payload);
-    for (int i=0;i<=10;i++)
+
+    String str = (char*)payload;
+    for (int i=0;i<10;i++)
     {
-     Serial.println(str); 
+      DateLine.concat(str[i]); 
     }
-//    Serial.println((char *)payload[0]);
-//    Serial.println((char *)payload[1]);
-//    Serial.println((char *)payload[2]);
-    n.update();
-    a = n.getHours();
-    b = n.getMinutes();
-    String h = String(a);
-    String m = String(b);
-    String myString = String(h+":"+m);
-    if (myTime == myString)
+    for (int i=11;i<16;i++)
     {
-      reqServer = 1;
+      TimeClose.concat(str[i]); 
     }
-    else if (strcmp((char *)payload, "MANUAL_ON")==0)
+    for (int i=17;i<22;i++)
+    {
+      TimeOpen.concat(str[i]); 
+    }
+    
+    if (strcmp((char *)payload, "MANUAL_ON")==0)
     {
       reqServer = 1;
     }
@@ -118,12 +120,28 @@ void setup()
   Serial.println("connected...");
 
   webSocket.begin(ip_host, port);
-
-  webSocket.onEvent(webSocketEvent);
   n.begin();
+  webSocket.onEvent(webSocketEvent);
 }
 void loop()
 {
+  n.begin();
+  n.setTimeOffset(7*3600);
+  n.update();
+  int a = n.getHours();
+  int b = n.getMinutes();
+  String h = String(a);
+  String m = String(b);
+  String myString = String(h+":"+m);
+  Serial.println(myString);  
+  unsigned long epochTime = n.getEpochTime();
+  struct tm *ptm = gmtime ((time_t *)&epochTime);
+  int monthDay = ptm->tm_mday;
+  int currentMonth = ptm->tm_mon+1;
+  int currentYear = ptm->tm_year+1900;
+    
+  String currentDate = String(monthDay) + "-" + String(currentMonth) + "-" + String(currentYear);
+  Serial.println(currentDate);
   webSocket.loop();
   Wire.beginTransmission(8);
   Wire.write(reqServer);
@@ -131,51 +149,93 @@ void loop()
   Wire.requestFrom(8, 13);
   reqServer = 0;
   
+  if (myString = TimeOpen)
+  {
+    while (myString != TimeClose)
+    {
+      if (Wire.available())
+      {
+        int reqArduino = Wire.read();
+        if (reqArduino == 1 && temp == 0)
+        {
+          resServer = "open successfully";
+          Serial.println(reqArduino);
+          temp = 1;
+          tempErr = 1;
+        }
+        else if (reqArduino == 2 && temp == 1)
+        {
+          resServer = "close successfully";
+          Serial.println(reqArduino);
+          temp = 0;
+          tempErr = 0;
+        }
+        else if (reqArduino == 255 && tempErr == 0)
+        {
+          resServer = "open error";
+          Serial.println(reqArduino);
+          temp = 1;
+          tempErr = 1;
+        }
+        else if (reqArduino == 254 && tempErr == 1)
+        {
+          resServer = "close error";
+          Serial.println(reqArduino);
+          temp = 0;
+          tempErr = 0;
+        }
+      }
+      if (resServer != "")
+      {
+
+          webSocket.sendTXT(resServer);
+
+          resServer = "";
+      }
+    }
+  }
+  else 
+  {
   if (Wire.available())
-  {
-    int reqArduino = Wire.read();
-    if (reqArduino == 1 && temp == 0)
-    {
-      resServer = "open successfully";
-      Serial.println(reqArduino);
-      temp = 1;
-      tempErr = 1;
-    }
-    else if (reqArduino == 2 && temp == 1)
-    {
-      resServer = "close successfully";
-      Serial.println(reqArduino);
-      temp = 0;
-      tempErr = 0;
-    }
-    else if (reqArduino == 255 && tempErr == 0)
-    {
-      resServer = "open error";
-      Serial.println(reqArduino);
-      temp = 1;
-      tempErr = 1;
-    }
-    else if (reqArduino == 254 && tempErr == 1)
-    {
-      resServer = "close error";
-      Serial.println(reqArduino);
-      temp = 0;
-      tempErr = 0;
-    }
-  }
-  if (resServer != "")
-  {
+        {
+        int reqArduino = Wire.read();
+        if (reqArduino == 1 && temp == 0)
+        {
+          resServer = "open successfully";
+          Serial.println(reqArduino);
+          temp = 1;
+          tempErr = 1;
+        }
+        else if (reqArduino == 2 && temp == 1)
+        {
+          resServer = "close successfully";
+          Serial.println(reqArduino);
+          temp = 0;
+          tempErr = 0;
+        }
+        else if (reqArduino == 255 && tempErr == 0)
+        {
+          resServer = "open error";
+          Serial.println(reqArduino);
+          temp = 1;
+          tempErr = 1;
+        }
+        else if (reqArduino == 254 && tempErr == 1)
+        {
+          resServer = "close error";
+          Serial.println(reqArduino);
+          temp = 0;
+          tempErr = 0;
+        }
+      }
+      if (resServer != "")
+      {
 
-    webSocket.sendTXT(resServer);
+        webSocket.sendTXT(resServer);
 
-    resServer = "";
+        resServer = "";
+      }
   }
-//  n.update();
-//  a = n.getHours();
-//  b = n.getMinutes();
-//  String h = String(a);
-//  String m = String(b);
-//  String myString = String(h+":"+m);
 //  if (myTime == myString)
 //  {
 //    Serial.println("success");
