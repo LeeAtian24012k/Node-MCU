@@ -6,6 +6,7 @@
 #include <WebSocketsClient.h> //https://github.com/Links2004/arduinoWebSockets
 #include <WiFiUdp.h>
 #include <NTPClient.h>
+#include <Time.h>
 
 WiFiUDP u;
 NTPClient n(u, "pool.ntp.org",7*3600);
@@ -18,12 +19,7 @@ int temp = 0;
 int tempErr = 0;
 String resServer = "";
 int t = 11*3600 + 47*60;
-String DateLine, TimeClose, TimeOpen;
-//int a = n.getHours();
-//int b = n.getMinutes();
-//String h = String(a);
-//String m = String(b);
-//String myString = String(h+":"+m);
+String DateLine, TimeClose, TimeOpen, FaceRecognition;
 
 void configModeCallback (WiFiManager *myWiFiManager)
 {
@@ -55,47 +51,50 @@ void webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
     Serial.println((char *)payload);
 
     String str = (char*)payload;
+    DateLine = TimeClose = TimeOpen = FaceRecognition = "";
+//    int len = str.length();
     for (int i=0;i<10;i++)
     {
-      DateLine.concat(str[i]); 
+      DateLine.concat(str[i]);
     }
-    for (int i=11;i<16;i++)
-    {
+    for (int i=11;i<16;i++){
       TimeClose.concat(str[i]); 
     }
-    for (int i=17;i<22;i++)
-    {
+    for (int i=17;i<22;i++){
       TimeOpen.concat(str[i]); 
     }
-    
-    if (strcmp((char *)payload, "MANUAL_ON")==0)
+    for (int i=23;i<42;i++){
+      FaceRecognition.concat(str[i]);
+    } 
+    Serial.println(DateLine);  
+    if (strcmp((char *)payload, "MANUAL_OFF")==0)
     {
       reqServer = 1;
     }
-    else if (strcmp((char *)payload, "MANUAL_OFF") == 0)
+    else if (strcmp((char *)payload, "MANUAL_ON") == 0)
     {
       reqServer = -1;
     }
-    else if (strcmp((char *)payload, "AUTO_ON") == 0)
+    else if (strcmp((char *)payload, "AUTO_OFF") == 0)
     {
       reqServer = 2;
     }
-    else if (strcmp((char *)payload, "AUTO_OFF") == 0)
+    else if (strcmp((char *)payload, "AUTO_ON") == 0)
     {
       reqServer = -2;
     }
-    else if (strcmp((char *)payload, "FACE_RECOGNITION_ON") == 0)
-    {
-      reqServer = 3;
-    }
-    else if (strcmp((char *)payload, "FACE_RECOGNITION_OFF") == 0)
-    {
-      reqServer = -3;
-    }
-    else if (strcmp((char *)payload, "FACE_RECOGNITION_CONFIRM") == 0)
-    {
-      reqServer = 4;
-    }
+//    else if (strcmp((char *)payload, "FACE_RECOGNITION_ON") == 0)
+//    {
+//      reqServer = 3;
+//    }
+//    else if (strcmp((char *)payload, "FACE_RECOGNITION_OFF") == 0)
+//    {
+//      reqServer = -3;
+//    }
+//    else if (strcmp((char *)payload, "FACE_RECOGNITION_CONFIRM") == 0)
+//    {
+//      reqServer = 4;
+//    }
     break;
   }
 }
@@ -119,127 +118,99 @@ void setup()
   // Thanh cong thi bao ra man hinh
   Serial.println("connected...");
 
-  webSocket.begin(ip_host, port);
   n.begin();
+  webSocket.begin(ip_host, port);
   webSocket.onEvent(webSocketEvent);
 }
 void loop()
 {
   n.begin();
-  n.setTimeOffset(7*3600);
   n.update();
   int a = n.getHours();
   int b = n.getMinutes();
   String h = String(a);
   String m = String(b);
   String myString = String(h+":"+m);
-  Serial.println(myString);  
-  unsigned long epochTime = n.getEpochTime();
+//  Serial.println(myString);
+  time_t epochTime = n.getEpochTime();
   struct tm *ptm = gmtime ((time_t *)&epochTime);
   int monthDay = ptm->tm_mday;
   int currentMonth = ptm->tm_mon+1;
+  String CurrentMonth;
+  String MonthDay;
+  if (monthDay < 10)
+  {
+    MonthDay = String("0"+String(monthDay));
+  }
+  else{
+    MonthDay = monthDay;
+  }
+  if (currentMonth < 10)
+  {
+    CurrentMonth = String("0"+String(currentMonth));
+  }
+  else{
+    CurrentMonth = currentMonth;
+  }
   int currentYear = ptm->tm_year+1900;
-    
-  String currentDate = String(monthDay) + "-" + String(currentMonth) + "-" + String(currentYear);
-  Serial.println(currentDate);
+  String currentDate = String(currentYear) + "-" + CurrentMonth + "-" + String(MonthDay);
+//  Serial.println(currentDate);
+  if (FaceRecognition == "FACE_RECOGNITION_ON"){
+    if (currentDate == DateLine){
+      if (myString == TimeOpen){
+        reqServer = 3;
+      }
+      else if (myString == TimeClose){
+        reqServer = -3;
+      }
+    }
+  }
+  else if (FaceRecognition == "FACE_RECOGNITION_OFF"){
+    reqServer = -3;
+  }
   webSocket.loop();
   Wire.beginTransmission(8);
   Wire.write(reqServer);
   Wire.endTransmission();
   Wire.requestFrom(8, 13);
   reqServer = 0;
-  
-  if (myString = TimeOpen)
+  if (Wire.available())
   {
-    while (myString != TimeClose)
+    int reqArduino = Wire.read();
+    if (reqArduino == 1 && temp == 0)
     {
-      if (Wire.available())
-      {
-        int reqArduino = Wire.read();
-        if (reqArduino == 1 && temp == 0)
-        {
-          resServer = "open successfully";
-          Serial.println(reqArduino);
-          temp = 1;
-          tempErr = 1;
-        }
-        else if (reqArduino == 2 && temp == 1)
-        {
-          resServer = "close successfully";
-          Serial.println(reqArduino);
-          temp = 0;
-          tempErr = 0;
-        }
-        else if (reqArduino == 255 && tempErr == 0)
-        {
-          resServer = "open error";
-          Serial.println(reqArduino);
-          temp = 1;
-          tempErr = 1;
-        }
-        else if (reqArduino == 254 && tempErr == 1)
-        {
-          resServer = "close error";
-          Serial.println(reqArduino);
-          temp = 0;
-          tempErr = 0;
-        }
-      }
-      if (resServer != "")
-      {
-
-          webSocket.sendTXT(resServer);
-
-          resServer = "";
-      }
+      resServer = "close successfully";
+      Serial.println(reqArduino);
+      temp = 1;
+      tempErr = 1;
+    }
+    else if (reqArduino == 2 && temp == 1)
+    {
+      resServer = "open successfully";
+      Serial.println(reqArduino);
+      temp = 0;
+      tempErr = 0;
+    }
+    else if (reqArduino == 255 && tempErr == 0)
+    {
+      resServer = "close error";
+      Serial.println(reqArduino);
+      temp = 1;
+      tempErr = 1;
+    }
+    else if (reqArduino == 254 && tempErr == 1)
+    {
+      resServer = "open error";
+      Serial.println(reqArduino);
+      temp = 0;
+      tempErr = 0;
     }
   }
-  else 
+  if (resServer != "")
   {
-  if (Wire.available())
-        {
-        int reqArduino = Wire.read();
-        if (reqArduino == 1 && temp == 0)
-        {
-          resServer = "open successfully";
-          Serial.println(reqArduino);
-          temp = 1;
-          tempErr = 1;
-        }
-        else if (reqArduino == 2 && temp == 1)
-        {
-          resServer = "close successfully";
-          Serial.println(reqArduino);
-          temp = 0;
-          tempErr = 0;
-        }
-        else if (reqArduino == 255 && tempErr == 0)
-        {
-          resServer = "open error";
-          Serial.println(reqArduino);
-          temp = 1;
-          tempErr = 1;
-        }
-        else if (reqArduino == 254 && tempErr == 1)
-        {
-          resServer = "close error";
-          Serial.println(reqArduino);
-          temp = 0;
-          tempErr = 0;
-        }
-      }
-      if (resServer != "")
-      {
 
-        webSocket.sendTXT(resServer);
+    webSocket.sendTXT(resServer);
 
-        resServer = "";
-      }
+    resServer = "";
   }
-//  if (myTime == myString)
-//  {
-//    Serial.println("success");
-//  }
-//  Serial.println(n.getFormattedTime());
-//  delay(1000);
 }
