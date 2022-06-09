@@ -17,9 +17,14 @@ const uint16_t port = 80;
 int reqServer = 0;
 int temp = 0;
 int tempErr = 0;
+String order;
 String resServer = "";
 int t = 11*3600 + 47*60;
 String DateLine, TimeClose, TimeOpen, FaceRecognition;
+//String DateLine = "2022-06-09";
+//String TimeClose = "21:60";
+//String TimeOpen = "21:55";
+//String FaceRecognition = "FACE_RECOGNITION_ON";
 
 void configModeCallback (WiFiManager *myWiFiManager)
 {
@@ -52,45 +57,52 @@ void webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
 
     String str = (char*)payload;
     DateLine = TimeClose = TimeOpen = FaceRecognition = "";
-//    int len = str.length();
-    for (int i=0;i<10;i++)
-    {
-      DateLine.concat(str[i]);
-    }
-    for (int i=11;i<16;i++){
-      TimeClose.concat(str[i]); 
-    }
-    for (int i=17;i<22;i++){
-      TimeOpen.concat(str[i]); 
-    }
-    for (int i=23;i<42;i++){
-      FaceRecognition.concat(str[i]);
-    } 
-    Serial.println(DateLine);  
-    if (strcmp((char *)payload, "MANUAL_OFF")==0)
-    {
-      reqServer = 1;
-    }
-    else if (strcmp((char *)payload, "MANUAL_ON") == 0)
+    char * p;
+
+    p = strtok((char *)payload, "-");
+    Serial.println(p);
+
+      for (int i=0;i<10;i++){
+        DateLine.concat(str[i]);
+      }
+      for (int i=11;i<16;i++){
+        TimeOpen.concat(str[i]); 
+      }
+      for (int i=17;i<22;i++){
+        TimeClose.concat(str[i]); 
+      }
+      for (int i=23;i<42;i++){
+        FaceRecognition.concat(str[i]);
+      }  
+    if (strcmp((char *)payload, "MANUAL_ON") == 0)
     {
       reqServer = -1;
     }
-    else if (strcmp((char *)payload, "AUTO_OFF") == 0)
+    else if (strcmp((char *)payload, "MANUAL_OFF")==0)
     {
-      reqServer = 2;
+      reqServer = 1;
     }
     else if (strcmp((char *)payload, "AUTO_ON") == 0)
     {
       reqServer = -2;
     }
-//    else if (strcmp((char *)payload, "FACE_RECOGNITION_ON") == 0)
-//    {
-//      reqServer = 3;
-//    }
-//    else if (strcmp((char *)payload, "FACE_RECOGNITION_OFF") == 0)
-//    {
-//      reqServer = -3;
-//    }
+    else if (strcmp((char *)payload, "AUTO_OFF") == 0)
+    {
+      reqServer = 2;
+    }
+    else if ((p == "FACE_RECOGNITION_CONFIRM") && (order == "confirm"))
+    {
+      Serial.println("dcmm");
+      reqServer = 4;
+    }
+    else if (FaceRecognition == "FACE_RECOGNITION_ON")
+    {
+      reqServer = -3;
+    }
+    else if (FaceRecognition == "FACE_RECOGNITION_OFF")
+    {
+      reqServer = 3;
+    }
 //    else if (strcmp((char *)payload, "FACE_RECOGNITION_CONFIRM") == 0)
 //    {
 //      reqServer = 4;
@@ -153,21 +165,21 @@ void loop()
     CurrentMonth = currentMonth;
   }
   int currentYear = ptm->tm_year+1900;
-  String currentDate = String(currentYear) + "-" + CurrentMonth + "-" + String(MonthDay);
+  String currentDate = String(currentYear) + "-" + CurrentMonth + "-" + MonthDay;
 //  Serial.println(currentDate);
-  if (FaceRecognition == "FACE_RECOGNITION_ON"){
-    if (currentDate == DateLine){
+  if (currentDate == DateLine){
       if (myString == TimeOpen){
         reqServer = 3;
+        order = "confirm";
+        Serial.println(order);
       }
       else if (myString == TimeClose){
         reqServer = -3;
+        order = "";
+        Serial.println(order);
       }
-    }
   }
-  else if (FaceRecognition == "FACE_RECOGNITION_OFF"){
-    reqServer = -3;
-  }
+
   webSocket.loop();
   Wire.beginTransmission(8);
   Wire.write(reqServer);
