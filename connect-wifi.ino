@@ -20,7 +20,11 @@ int tempErr = 0;
 String order;
 String resServer = "";
 int t = 11*3600 + 47*60;
-String DateLine, TimeClose, TimeOpen, FaceRecognition;
+String DateLine = "";
+String TimeClose = "";
+String TimeOpen = "";
+String FaceRecognition = "";
+String myString;
 //String DateLine = "2022-06-09";
 //String TimeClose = "21:60";
 //String TimeOpen = "21:55";
@@ -56,57 +60,80 @@ void webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
     Serial.println((char *)payload);
 
     String str = (char*)payload;
-    DateLine = TimeClose = TimeOpen = FaceRecognition = "";
-    char * p;
+    
+    String p;
 
-    p = strtok((char *)payload, "-");
-    Serial.println(p);
-
-      for (int i=0;i<10;i++){
-        DateLine.concat(str[i]);
+    Serial.println(str.length());
+    DateLine = "";
+    TimeClose = "";
+    TimeOpen = "";
+    FaceRecognition = "";
+    for(int i=0; i<str.length(); i++){
+      if(str.length()==42){
+        if(i<10){
+          DateLine.concat(str[i]);
+//          Serial.println(DateLine);
+        }
+        else if(10<i and i<16){
+          TimeOpen.concat(str[i]); 
+//          Serial.println(TimeOpen);
+        }
+        else if(16<i and i<22){
+          TimeClose.concat(str[i]); 
+//          Serial.println(TimeClose);
+        }
+        else if(22<i and i<42){
+          FaceRecognition.concat(str[i]); 
+//          Serial.println(FaceRecognition);
+        }
       }
-      for (int i=11;i<16;i++){
-        TimeOpen.concat(str[i]); 
+      else if(10<str.length() && str.length()<42){
+        if(i<24){
+          p.concat(str[i]);
+//          Serial.println(p.substring(0,24));
+        }
       }
-      for (int i=17;i<22;i++){
-        TimeClose.concat(str[i]); 
-      }
-      for (int i=23;i<42;i++){
-        FaceRecognition.concat(str[i]);
-      }  
-    if (strcmp((char *)payload, "MANUAL_ON") == 0)
-    {
-      reqServer = -1;
     }
-    else if (strcmp((char *)payload, "MANUAL_OFF")==0)
+
+    Serial.println(FaceRecognition.substring(0,19));
+      
+    if (strcmp((char *)payload, "MANUAL_ON") == 0)
     {
       reqServer = 1;
     }
-    else if (strcmp((char *)payload, "AUTO_ON") == 0)
+    else if (strcmp((char *)payload, "MANUAL_OFF")==0)
     {
-      reqServer = -2;
+      reqServer = -1;
     }
-    else if (strcmp((char *)payload, "AUTO_OFF") == 0)
+    else if (strcmp((char *)payload, "AUTO_ON") == 0)
     {
       reqServer = 2;
     }
-    else if ((p == "FACE_RECOGNITION_CONFIRM") && (order == "confirm"))
+    else if (strcmp((char *)payload, "AUTO_OFF") == 0)
+    {
+      reqServer = -2;
+    }
+    else if ((p.substring(0,24) == "FACE_RECOGNITION_CONFIRM") && (order == "confirm"))
     {
       Serial.println("dcmm");
       reqServer = 4;
     }
-    else if (FaceRecognition == "FACE_RECOGNITION_ON")
-    {
-      reqServer = -3;
-    }
-    else if (FaceRecognition == "FACE_RECOGNITION_OFF")
+    else if (FaceRecognition.substring(0,19) == "FACE_RECOGNITION_ON")
     {
       reqServer = 3;
     }
-//    else if (strcmp((char *)payload, "FACE_RECOGNITION_CONFIRM") == 0)
-//    {
-//      reqServer = 4;
-//    }
+    else if (strcmp((char *)payload, "FACE_RECOGNITION_OFF"))
+    {
+      reqServer = -3;
+      DateLine = "";
+      TimeClose = "";
+      TimeOpen = "";
+      FaceRecognition = "";
+    }
+    else if (strcmp((char *)payload, "FACE_RECOGNITION_CONFIRM-VuTuanHung") == 0)
+    {
+      reqServer = 4;
+    }
     break;
   }
 }
@@ -142,21 +169,27 @@ void loop()
   int b = n.getMinutes();
   String h = String(a);
   String m = String(b);
-  String myString = String(h+":"+m);
-//  Serial.println(myString);
+
+  if (b<10){
+    myString = String(h+":"+"0"+m);
+  }
+  else{
+    myString = String(h+":"+m);
+  }
+  Serial.println(myString);
   time_t epochTime = n.getEpochTime();
   struct tm *ptm = gmtime ((time_t *)&epochTime);
   int monthDay = ptm->tm_mday;
   int currentMonth = ptm->tm_mon+1;
   String CurrentMonth;
   String MonthDay;
-  if (monthDay < 10)
-  {
-    MonthDay = String("0"+String(monthDay));
-  }
-  else{
-    MonthDay = monthDay;
-  }
+//  if (monthDay < 10)
+//  {
+//    MonthDay = String("0"+String(monthDay));
+//  }
+//  else{
+//    MonthDay = monthDay;
+//  }
   if (currentMonth < 10)
   {
     CurrentMonth = String("0"+String(currentMonth));
@@ -165,16 +198,24 @@ void loop()
     CurrentMonth = currentMonth;
   }
   int currentYear = ptm->tm_year+1900;
-  String currentDate = String(currentYear) + "-" + CurrentMonth + "-" + MonthDay;
+  String currentDate = String(currentYear) + "-" + CurrentMonth + "-" + String(monthDay);
+//  Serial.println(DateLine.substring(0,10));
+//  Serial.println(TimeOpen.substring(0,5));
+//  Serial.println(TimeClose.substring(0,5));
+//  Serial.println(myString);
 //  Serial.println(currentDate);
-  if (currentDate == DateLine){
-      if (myString == TimeOpen){
-        reqServer = 3;
+  
+  if (currentDate == DateLine.substring(0,10)){
+//    Serial.println(DateLine.substring(0,10));
+//    Serial.println(currentDate);
+      if (myString == TimeOpen.substring(0,5)){
+//        Serial.println(TimeOpen.substring(0,5));
+//        Serial.println(myString);
         order = "confirm";
         Serial.println(order);
       }
-      else if (myString == TimeClose){
-        reqServer = -3;
+      else if (myString == TimeClose.substring(0,5)){
+//        Serial.println(TimeClose.substring(0,5));
         order = "";
         Serial.println(order);
       }
