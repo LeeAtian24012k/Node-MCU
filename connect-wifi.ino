@@ -17,14 +17,14 @@ const uint16_t port = 80;
 int reqServer = 0;
 int temp = 0;
 int tempErr = 0;
-String order;
+String Verify;
 String resServer = "";
 int t = 11*3600 + 47*60;
 String DateLine = "";
 String TimeClose = "";
 String TimeOpen = "";
 String FaceRecognition = "";
-String myString;
+String RealTimeClock;
 //String DateLine = "2022-06-09";
 //String TimeClose = "21:60";
 //String TimeOpen = "21:55";
@@ -113,16 +113,15 @@ void webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
     {
       reqServer = -2;
     }
-    else if ((p.substring(0,24) == "FACE_RECOGNITION_CONFIRM") && (order == "confirm"))
+    else if ((p.substring(0,24) == "FACE_RECOGNITION_CONFIRM") && (Verify == "confirm"))
     {
-      Serial.println("dcmm");
       reqServer = 4;
     }
-    else if (FaceRecognition.substring(0,19) == "FACE_RECOGNITION_ON")
+    else if (FaceRecognition.substring(0,19) == "FACE_RECOGNITION_ON" == 0)
     {
       reqServer = 3;
     }
-    else if (strcmp((char *)payload, "FACE_RECOGNITION_OFF"))
+    else if (strcmp((char *)payload, "FACE_RECOGNITION_OFF") == 0)
     {
       reqServer = -3;
       DateLine = "";
@@ -130,7 +129,7 @@ void webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
       TimeOpen = "";
       FaceRecognition = "";
     }
-    else if (strcmp((char *)payload, "FACE_RECOGNITION_CONFIRM-VuTuanHung") == 0)
+    if (strcmp((char *)payload, "FACE_RECOGNITION_CONFIRM-VuTuanHung") == 0)
     {
       reqServer = 4;
     }
@@ -171,12 +170,12 @@ void loop()
   String m = String(b);
 
   if (b<10){
-    myString = String(h+":"+"0"+m);
+    RealTimeClock = String(h+":"+"0"+m);
   }
   else{
-    myString = String(h+":"+m);
+    RealTimeClock = String(h+":"+m);
   }
-  Serial.println(myString);
+  Serial.println(RealTimeClock);
   time_t epochTime = n.getEpochTime();
   struct tm *ptm = gmtime ((time_t *)&epochTime);
   int monthDay = ptm->tm_mday;
@@ -202,22 +201,22 @@ void loop()
 //  Serial.println(DateLine.substring(0,10));
 //  Serial.println(TimeOpen.substring(0,5));
 //  Serial.println(TimeClose.substring(0,5));
-//  Serial.println(myString);
+//  Serial.println(RealTimeClock);
 //  Serial.println(currentDate);
   
   if (currentDate == DateLine.substring(0,10)){
 //    Serial.println(DateLine.substring(0,10));
 //    Serial.println(currentDate);
-      if (myString == TimeOpen.substring(0,5)){
+      if (RealTimeClock == TimeOpen.substring(0,5)){
 //        Serial.println(TimeOpen.substring(0,5));
-//        Serial.println(myString);
-        order = "confirm";
-        Serial.println(order);
+//        Serial.println(RealTimeClock);
+        Verify = "confirm";
+        Serial.println(Verify);
       }
-      else if (myString == TimeClose.substring(0,5)){
+      else if (RealTimeClock == TimeClose.substring(0,5)){
 //        Serial.println(TimeClose.substring(0,5));
-        order = "";
-        Serial.println(order);
+        Verify = "";
+        Serial.println(Verify);
       }
   }
 
@@ -232,14 +231,14 @@ void loop()
     int reqArduino = Wire.read();
     if (reqArduino == 1 && temp == 0)
     {
-      resServer = "close successfully";
+      resServer = "open successfully";
       Serial.println(reqArduino);
       temp = 1;
       tempErr = 1;
     }
     else if (reqArduino == 2 && temp == 1)
     {
-      resServer = "open successfully";
+      resServer = "close successfully";
       Serial.println(reqArduino);
       temp = 0;
       tempErr = 0;
