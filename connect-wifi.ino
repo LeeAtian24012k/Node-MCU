@@ -117,7 +117,7 @@ void webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
     {
       reqServer = 4;
     }
-    else if (FaceRecognition.substring(0,19) == "FACE_RECOGNITION_ON" == 0)
+    else if (FaceRecognition.substring(0,19) == "FACE_RECOGNITION_ON")
     {
       reqServer = 3;
     }
@@ -156,12 +156,19 @@ void setup()
   // Thanh cong thi bao ra man hinh
   Serial.println("connected...");
 
-  n.begin();
   webSocket.begin(ip_host, port);
   webSocket.onEvent(webSocketEvent);
 }
 void loop()
 {
+  webSocket.loop();
+  Wire.beginTransmission(8);
+  Wire.write(reqServer);
+  Wire.endTransmission();
+  Wire.requestFrom(8, 13);
+  if(reqServer==4){
+     reqServer = 0;
+  }
   n.begin();
   n.update();
   int a = n.getHours();
@@ -175,7 +182,7 @@ void loop()
   else{
     RealTimeClock = String(h+":"+m);
   }
-  Serial.println(RealTimeClock);
+//  Serial.println(RealTimeClock);
   time_t epochTime = n.getEpochTime();
   struct tm *ptm = gmtime ((time_t *)&epochTime);
   int monthDay = ptm->tm_mday;
@@ -220,12 +227,7 @@ void loop()
       }
   }
 
-  webSocket.loop();
-  Wire.beginTransmission(8);
-  Wire.write(reqServer);
-  Wire.endTransmission();
-  Wire.requestFrom(8, 13);
-  reqServer = 0;
+
   if (Wire.available())
   {
     int reqArduino = Wire.read();
